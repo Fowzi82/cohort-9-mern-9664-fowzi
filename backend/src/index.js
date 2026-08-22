@@ -4,16 +4,16 @@ const express = require('express');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
 const authRoutes = require('./routes/authRoutes');
+const noteRoutes = require('./routes/noteRoutes');
 
 const app = express();
 const logger = pino();
-const notesRoutes = express.Router();
 
 app.use(express.json());
 app.use(pinoHttp({ logger }));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/notes', notesRoutes);
+app.use('/api/notes', noteRoutes);
 
 app.use((err, req, res, next) => {
 	req.log.error({ err }, 'Unhandled application error');
