@@ -4,6 +4,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/userModel');
 
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret || jwtSecret === 'your_super_secret_jwt_key_change_this') {
+  throw new Error('JWT_SECRET must be set to a secure value');
+}
+
 async function register(username, email, password) {
   const hashedPassword = await bcrypt.hash(password, 10);
 

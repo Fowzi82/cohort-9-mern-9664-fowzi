@@ -6,21 +6,24 @@ const pinoHttp = require('pino-http');
 const authRoutes = require('./routes/authRoutes');
 
 const app = express();
-const logger = pino();
+const logger = pino({ redact: ['req.headers.authorization', 'req.headers.cookie'] });
 const notesRoutes = express.Router();
 
-app.use(express.json());
 app.use(pinoHttp({ logger }));
+app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 
 app.use((err, req, res, next) => {
-	req.log.error({ err }, 'Unhandled application error');
+  req.log.error({ err }, 'Unhandled application error');
 
-	res.status(err.status || 500).json({
-		error: err.message || 'Internal server error',
-	});
+  const status = err.status || 500;
+  const message = status >= 400 && status < 500 ? err.message : 'Internal server error';
+
+  res.status(status).json({
+    error: message,
+  });
 });
 
 const port = process.env.PORT || 5000;
