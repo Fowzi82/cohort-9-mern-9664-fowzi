@@ -2,7 +2,15 @@ const noteService = require('../services/noteService');
 
 async function createNote(req, res, next) {
   try {
-    const { title, content } = req.body;
+    const body = req.body || {};
+    const { title, content } = body;
+
+    if (!title) {
+      return res.status(400).json({
+        error: 'Title is required',
+      });
+    }
+
     const result = await noteService.createNote(req.user.id, title, content);
 
     res.status(201).json(result);
@@ -33,7 +41,15 @@ async function getNoteById(req, res, next) {
 
 async function updateNote(req, res, next) {
   try {
-    const { title, content } = req.body;
+    const body = req.body || {};
+    const { title, content } = body;
+
+    if (!title) {
+      return res.status(400).json({
+        error: 'Title is required',
+      });
+    }
+
     const note = await noteService.updateNote(
       req.params.id,
       req.user.id,
