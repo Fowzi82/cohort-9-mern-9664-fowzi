@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const express = require('express');
+const cors = require('cors');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
 const authRoutes = require('./routes/authRoutes');
@@ -9,6 +10,7 @@ const noteRoutes = require('./routes/noteRoutes');
 const app = express();
 const logger = pino({ redact: ['req.headers.authorization', 'req.headers.cookie'] });
 
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(pinoHttp({ logger }));
 app.use(express.json());
 
@@ -28,7 +30,7 @@ app.use((err, req, res, next) => {
 
 const port = process.env.PORT || 5000;
 const server = app.listen(port, () => {
-	logger.info({ port }, 'Server started');
+  logger.info({ port }, 'Server started');
 });
 
 module.exports = { app, server };
