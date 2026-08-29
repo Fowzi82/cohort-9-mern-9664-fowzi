@@ -27,8 +27,38 @@ async function findUserById(id) {
   return rows[0] || null;
 }
 
+async function findUserWithPasswordById(id) {
+  const [rows] = await pool.execute(
+    'SELECT id, username, email, password FROM users WHERE id = ?',
+    [id]
+  );
+
+  return rows[0] || null;
+}
+
+async function updateUsername(id, username) {
+  const [result] = await pool.execute(
+    'UPDATE users SET username = ? WHERE id = ?',
+    [username, id]
+  );
+
+  return result;
+}
+
+async function updatePassword(id, hashedPassword) {
+  const [result] = await pool.execute(
+    'UPDATE users SET password = ? WHERE id = ?',
+    [hashedPassword, id]
+  );
+
+  return result;
+}
+
 module.exports = {
   createUser,
   findUserByEmail,
   findUserById,
+  findUserWithPasswordById,
+  updateUsername,
+  updatePassword,
 };

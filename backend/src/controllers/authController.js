@@ -22,7 +22,31 @@ async function login(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const { username } = req.body || {};
+    const result = await authService.updateProfile(req.user.id, username);
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    const result = await authService.changePassword(req.user.id, currentPassword, newPassword);
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   register,
   login,
+  updateProfile,
+  changePassword,
 };

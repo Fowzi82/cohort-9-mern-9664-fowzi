@@ -4,8 +4,8 @@ async function createNote(userId, title, content) {
   return noteModel.createNote(userId, title, content);
 }
 
-async function getNotes(userId) {
-  return noteModel.getNotesByUserId(userId);
+async function getNotes(userId, options = {}) {
+  return noteModel.getNotesByUserId(userId, options);
 }
 
 async function getNoteById(id, userId) {
@@ -20,8 +20,52 @@ async function getNoteById(id, userId) {
   return note;
 }
 
-async function updateNote(id, userId, title, content) {
-  const result = await noteModel.updateNote(id, userId, title, content);
+async function updateNote(id, userId, fields) {
+  const result = await noteModel.updateNote(id, userId, fields);
+
+  if (!result.affectedRows) {
+    const error = new Error('Note not found');
+    error.status = 404;
+    throw error;
+  }
+
+  return noteModel.getNoteById(id, userId);
+}
+
+async function updatePin(id, userId, isPinned) {
+  const result = await noteModel.updatePin(id, userId, Boolean(isPinned));
+
+  if (!result.affectedRows) {
+    const error = new Error('Note not found');
+    error.status = 404;
+    throw error;
+  }
+
+  return noteModel.getNoteById(id, userId);
+}
+
+async function updateColor(id, userId, color) {
+  const allowedColors = ['default', 'red', 'yellow', 'green', 'blue', 'purple'];
+
+  if (!allowedColors.includes(color)) {
+    const error = new Error('Invalid note color');
+    error.status = 400;
+    throw error;
+  }
+
+  const result = await noteModel.updateColor(id, userId, color);
+
+  if (!result.affectedRows) {
+    const error = new Error('Note not found');
+    error.status = 404;
+    throw error;
+  }
+
+  return noteModel.getNoteById(id, userId);
+}
+
+async function updateArchive(id, userId, isArchived) {
+  const result = await noteModel.updateArchive(id, userId, Boolean(isArchived));
 
   if (!result.affectedRows) {
     const error = new Error('Note not found');
@@ -49,5 +93,8 @@ module.exports = {
   getNotes,
   getNoteById,
   updateNote,
+  updatePin,
+  updateColor,
+  updateArchive,
   deleteNote,
 };

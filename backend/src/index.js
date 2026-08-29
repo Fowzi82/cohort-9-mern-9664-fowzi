@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const logger = require('./config/logger');
 const authRoutes = require('./routes/authRoutes');
 const noteRoutes = require('./routes/noteRoutes');
+const tagRoutes = require('./routes/tagRoutes');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use((req, res, next) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', noteRoutes);
+app.use('/api/tags', tagRoutes);
 
 app.use((err, req, res, next) => {
   req.log.error({ err }, 'Unhandled application error');

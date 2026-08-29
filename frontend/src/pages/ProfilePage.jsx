@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Camera, LoaderCircle, LogOut, Save, UserRound } from 'lucide-react'
+import { ArrowLeft, Camera, KeyRound, LoaderCircle, LogOut, Save, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
@@ -32,13 +32,17 @@ function readFileAsDataUrl(file) {
 
 function ProfilePage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, login, logout } = useAuth()
   const fileInputRef = useRef(null)
   const [profile, setProfile] = useState(() => getStoredProfile())
   const [displayName, setDisplayName] = useState('')
+  const [username, setUsername] = useState('')
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [notesCount, setNotesCount] = useState(0)
   const [loadingNotes, setLoadingNotes] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingUsername, setSavingUsername] = useState(false)
+  const [savingPassword, setSavingPassword] = useState(false)
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
 
   const fullName = useMemo(() => getAvatarDisplayName(user, profile), [profile, user])
@@ -48,6 +52,10 @@ function ProfilePage() {
   useEffect(() => {
     setDisplayName(profile.displayName || user?.username || '')
   }, [profile.displayName, user?.username])
+
+  useEffect(() => {
+    setUsername(user?.username || '')
+  }, [user?.username])
 
   useEffect(() => {
     if (!profile.createdAt) {
@@ -60,10 +68,9 @@ function ProfilePage() {
     async function loadNotesCount() {
       try {
         const response = await api.get('/api/notes')
-        const notes = Array.isArray(response.data) ? response.data : response.data.notes || []
-        setNotesCount(notes.length)
+        setNotesCount(Array.isArray(response.data) ? response.data.length : 0)
       } catch {
-        toast.error('Unable to load your notes stats.')
+        setNotesCount(0)
       } finally {
         setLoadingNotes(false)
       }
@@ -115,13 +122,72 @@ function ProfilePage() {
     setSaving(false)
   }
 
+  async function handleSaveUsername() {
+    const trimmed = username.trim()
+    if (!trimmed) {
+      toast.error('Username cannot be empty.')
+      return
+    }
+
+    setSavingUsername(true)
+    try {
+      const response = await api.put('/api/auth/update-profile', { username: trimmed })
+      if (response.data?.token && login) {
+        login(response.data.token)
+      }
+      toast.success('Username updated.')
+    } catch (requestError) {
+      const message = requestError.response?.data?.error || 'Unable to update username.'
+      toast.error(message)
+    } finally {
+      setSavingUsername(false)
+    }
+  }
+
+  async function handleChangePassword() {
+    const currentPassword = passwordForm.currentPassword
+    const newPassword = passwordForm.newPassword
+    const confirmPassword = passwordForm.confirmPassword
+
+    if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      toast.error('Fill in all password fields.')
+      return
+    }
+
+    if (!newPassword.trim()) {
+      toast.error('New password cannot be empty.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match.')
+      return
+    }
+
+    setSavingPassword(true)
+    try {
+      await api.put('/api/auth/change-password', { currentPassword, newPassword })
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      toast.success('Password updated.')
+    } catch (requestError) {
+      const message = requestError.response?.data?.error || 'Unable to update password.'
+      toast.error(message)
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
   return (
     <main className="dashboard-shell relative min-h-screen overflow-hidden px-4 py-8 text-white sm:px-6 lg:px-10">
       <div className="dashboard-grid" />
 
       <div className="relative mx-auto w-full max-w-4xl">
         <div className="mb-8 flex items-center justify-between gap-3">
-          <Link to="/dashboard" className="text-sm text-slate-300 transition hover:text-white">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+          >
+            <ArrowLeft size={16} />
             Back to dashboard
           </Link>
           <div className="flex items-center text-sm font-semibold tracking-[0.12em] uppercase text-white/90">
@@ -213,6 +279,78 @@ function ProfilePage() {
                 {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
                 {saving ? 'Saving...' : 'Save'}
               </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-[#1e1e2e] bg-[#111118] p-4 sm:p-5">
+            <p className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+              <UserRound size={16} /> Username
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+                className="h-11 border-[#1e1e2e] bg-[#0f0f16] text-white placeholder:text-slate-500 focus-visible:border-indigo-400/80 focus-visible:ring-indigo-500/20"
+                placeholder="Your username"
+              />
+              <Button
+                type="button"
+                disabled={savingUsername}
+                onClick={handleSaveUsername}
+                className="h-11 bg-gradient-to-r from-indigo-500 to-purple-600 font-semibold text-white hover:brightness-110"
+              >
+                {savingUsername ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
+                {savingUsername ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-[#1e1e2e] bg-[#111118] p-4 sm:p-5">
+            <p className="mb-3 flex items-center gap-2 text-sm text-slate-300">
+              <KeyRound size={16} /> Change password
+            </p>
+            <div className="grid gap-3">
+              <Input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                autoComplete="current-password"
+                className="h-11 border-[#1e1e2e] bg-[#0f0f16] text-white placeholder:text-slate-500 focus-visible:border-indigo-400/80 focus-visible:ring-indigo-500/20"
+                placeholder="Current Password"
+              />
+              <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+                <Input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                  autoComplete="new-password"
+                  className="h-11 border-[#1e1e2e] bg-[#0f0f16] text-white placeholder:text-slate-500 focus-visible:border-indigo-400/80 focus-visible:ring-indigo-500/20"
+                  placeholder="New Password"
+                />
+                <Input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  autoComplete="new-password"
+                  className="h-11 border-[#1e1e2e] bg-[#0f0f16] text-white placeholder:text-slate-500 focus-visible:border-indigo-400/80 focus-visible:ring-indigo-500/20"
+                  placeholder="Confirm Password"
+                />
+                <Button
+                  type="button"
+                  disabled={
+                    savingPassword ||
+                    !passwordForm.currentPassword ||
+                    !passwordForm.newPassword ||
+                    !passwordForm.confirmPassword
+                  }
+                  onClick={handleChangePassword}
+                  className="h-11 bg-gradient-to-r from-indigo-500 to-purple-600 font-semibold text-white hover:brightness-110 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {savingPassword ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
+                  {savingPassword ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
             </div>
           </div>
         </motion.section>

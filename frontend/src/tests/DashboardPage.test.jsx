@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DashboardPage from '../pages/DashboardPage'
@@ -15,6 +16,7 @@ vi.mock('../lib/axios', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    patch: vi.fn(),
     delete: vi.fn(),
   },
 }))
@@ -50,6 +52,28 @@ vi.mock('react-hot-toast', () => ({
     error: vi.fn(),
     success: vi.fn(),
   },
+}))
+
+vi.mock('../pages/NoteEditorModal', () => ({
+  default: ({ onClose, onSaved }) => (
+    <button
+      type="button"
+      onClick={() => {
+        onSaved({
+          closeAfterSave: true,
+          isNewNote: true,
+          note: {
+            id: 'note-1',
+            title: 'First note',
+            content: '<p>Hello dashboard</p>',
+          },
+        })
+        onClose()
+      }}
+    >
+      Mock save note
+    </button>
+  ),
 }))
 
 function renderDashboardPage() {
@@ -114,5 +138,20 @@ describe('DashboardPage', () => {
       expect(screen.getByText('Sprint planning')).toBeInTheDocument()
       expect(screen.getByText('Reading list')).toBeInTheDocument()
     })
+  })
+
+  it('shows the first newly created note without reloading or re-fetching', async () => {
+    const user = userEvent.setup()
+    api.get.mockResolvedValueOnce({ data: [] })
+
+    renderDashboardPage()
+
+    expect(await screen.findByText(/your blank page is waiting/i)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /new note/i }))
+    await user.click(screen.getByRole('button', { name: /mock save note/i }))
+
+    expect(await screen.findByText('First note')).toBeInTheDocument()
+    expect(api.get).toHaveBeenCalledTimes(1)
   })
 })

@@ -85,7 +85,7 @@ function LoginPage() {
             <label className="block space-y-2 text-sm text-white/60">
               <span>Email</span>
               <div className="relative">
-                <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#94a3b8]" />
                 <Input
                   required
                   type="email"
@@ -93,7 +93,7 @@ function LoginPage() {
                   value={form.email}
                   onChange={updateField}
                   placeholder="you@company.com"
-                  className="h-12 border-[#1e1e2e] bg-[#111118] pl-10 text-white placeholder:text-slate-500 focus-visible:border-indigo-400/80 focus-visible:ring-indigo-400/20"
+                  className="h-12 border-[#1e1e2e] bg-[#1e1e2e] pl-10 text-white placeholder:text-[#64748b] focus-visible:border-indigo-400/80 focus-visible:ring-indigo-400/20"
                 />
               </div>
             </label>
@@ -101,7 +101,7 @@ function LoginPage() {
             <label className="block space-y-2 text-sm text-white/60">
               <span>Password</span>
               <div className="relative">
-                <LockKeyhole size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                <LockKeyhole size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#94a3b8]" />
                 <Input
                   required
                   type={showPassword ? 'text' : 'password'}
@@ -109,7 +109,7 @@ function LoginPage() {
                   value={form.password}
                   onChange={updateField}
                   placeholder="Enter your password"
-                  className="h-12 border-[#1e1e2e] bg-[#111118] pl-10 pr-11 text-white placeholder:text-slate-500 focus-visible:border-indigo-400/80 focus-visible:ring-indigo-400/20"
+                  className="h-12 border-[#1e1e2e] bg-[#1e1e2e] pl-10 pr-11 text-white placeholder:text-[#64748b] focus-visible:border-indigo-400/80 focus-visible:ring-indigo-400/20"
                 />
                 <button
                   type="button"
