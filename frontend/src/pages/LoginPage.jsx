@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Sparkles } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -29,7 +30,9 @@ function LoginPage() {
       login(response.data.token || response.data)
       navigate('/dashboard')
     } catch (requestError) {
-      setError(requestError.response?.data?.error || 'Unable to sign in. Please check your details.')
+      const message = requestError.response?.data?.error || 'Unable to sign in. Please check your details.'
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -40,12 +43,12 @@ function LoginPage() {
       <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-[0_30px_90px_rgba(2,6,23,0.5)] backdrop-blur-2xl md:grid-cols-[1.08fr_0.92fr]">
         <section className="hidden flex-col justify-between border-r border-[#1e1e2e] bg-[#0f0f16]/80 p-10 md:flex lg:p-14">
           <div className="flex items-center text-sm font-semibold tracking-[0.12em] uppercase text-white/90">
-            <span className="text-white font-bold">Lumen</span>
-            <span className="gradient-text ml-2">Notes</span>
+            <span className="text-white font-bold">Khayaal</span>
+            <span className="mx-3 h-4 w-px bg-white/25" aria-hidden="true" />
+            <span className="wordmark-urdu gradient-text pb-2 leading-loose text-base">خیال</span>
           </div>
 
           <div>
-            <Sparkles className="mb-8 text-indigo-400" size={28} />
             <h1 className="max-w-sm text-4xl font-semibold leading-tight tracking-[-0.05em] lg:text-5xl">
               Your sharpest thinking, in one place.
             </h1>
@@ -65,8 +68,9 @@ function LoginPage() {
         >
           <div className="mb-10 md:hidden">
             <div className="mb-8 flex items-center text-sm font-semibold tracking-[0.12em] uppercase text-white/90">
-              <span className="text-white font-bold">Lumen</span>
-              <span className="gradient-text ml-2">Notes</span>
+              <span className="text-white font-bold">Khayaal</span>
+              <span className="mx-3 h-4 w-px bg-white/25" aria-hidden="true" />
+              <span className="wordmark-urdu gradient-text pb-2 leading-loose text-base">خیال</span>
             </div>
             <p className="text-3xl font-semibold tracking-[-0.04em]">Welcome back.</p>
           </div>
@@ -136,7 +140,7 @@ function LoginPage() {
           </form>
 
           <p className="mt-8 text-center text-sm text-slate-400">
-            New to Lumen?{' '}
+            New to Khayaal?{' '}
             <Link to="/register" className="font-medium text-indigo-300 transition hover:text-indigo-200">
               Create an account
             </Link>

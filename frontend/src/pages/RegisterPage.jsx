@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
-import { ArrowRight, LockKeyhole, Mail, Sparkles, UserRound } from 'lucide-react'
+import { ArrowRight, LockKeyhole, Mail, UserRound } from 'lucide-react'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -22,9 +23,12 @@ function RegisterPage() {
     setLoading(true)
     try {
       await api.post('/api/auth/register', form)
+      toast.success('Account created. Please sign in.')
       navigate('/login')
     } catch (requestError) {
-      setError(requestError.response?.data?.error || 'Unable to create your account. Please try again.')
+      const message = requestError.response?.data?.error || 'Unable to create your account. Please try again.'
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -39,12 +43,12 @@ function RegisterPage() {
         className="relative w-full max-w-md rounded-[32px] border border-white/10 bg-white/[0.045] p-7 shadow-[0_30px_90px_rgba(2,6,23,0.5)] backdrop-blur-2xl sm:p-10"
       >
         <div className="mb-10 flex items-center text-sm font-semibold tracking-[0.12em] uppercase text-white/90">
-          <span className="text-white font-bold">Lumen</span>
-          <span className="gradient-text ml-2">Notes</span>
+          <span className="text-white font-bold">Khayaal</span>
+          <span className="mx-3 h-4 w-px bg-white/25" aria-hidden="true" />
+          <span className="wordmark-urdu gradient-text pb-2 leading-loose text-base">خیال</span>
         </div>
 
         <div className="mb-8">
-          <Sparkles className="mb-5 text-indigo-300" size={25} />
           <p className="mb-3 text-[0.68rem] font-medium uppercase tracking-[0.2em] text-indigo-300">Start capturing</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em]">Make space for good ideas.</h1>
           <p className="mt-3 text-sm leading-6 text-slate-400">Create your workspace and bring your thinking together.</p>

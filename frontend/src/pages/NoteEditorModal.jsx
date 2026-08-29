@@ -1,6 +1,11 @@
+import CharacterCount from '@tiptap/extension-character-count'
+import Placeholder from '@tiptap/extension-placeholder'
+import StarterKit from '@tiptap/starter-kit'
+import { EditorContent, useEditor } from '@tiptap/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { FileText, LoaderCircle, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Bold, FileText, Italic, List, ListOrdered, LoaderCircle, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import toast from 'react-hot-toast'
 import { Button } from '../components/ui/button'
 import {
   Dialog,
@@ -13,38 +18,142 @@ import {
 import { Input } from '../components/ui/input'
 import api from '../lib/axios'
 
+function extractNoteId(payload) {
+  return payload?.id || payload?.note?.id || payload?.noteId || null
+}
+
 function NoteEditorModal({ note, onClose, onSaved }) {
   const [title, setTitle] = useState(note?.title || '')
-  const [content, setContent] = useState(note?.content || '')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const textareaRef = useRef(null)
+  const [saveState, setSaveState] = useState('idle')
+  const [currentNoteId, setCurrentNoteId] = useState(note?.id || null)
+  const [version, setVersion] = useState(0)
+  const baselineRef = useRef({ title: note?.title || '', content: note?.content || '' })
+  const saveTimerRef = useRef(null)
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: 'Start writing...' }),
+      CharacterCount,
+    ],
+    content: note?.content || '',
+    onUpdate: () => {
+      setVersion((currentValue) => currentValue + 1)
+    },
+    editorProps: {
+      attributes: {
+        class:
+          'tiptap-editor mt-8 min-h-[300px] w-full rounded-2xl border border-[#1e1e2e] bg-[#111118] p-4 text-base leading-7 text-white/80 outline-none transition focus:border-indigo-400/70 focus:ring-4 focus:ring-indigo-500/15',
+      },
+    },
+    immediatelyRender: false,
+  })
+
+  const htmlContent = editor?.getHTML() || ''
+  const charCount = editor?.storage?.characterCount?.characters() || 0
+  const wordCount = editor?.storage?.characterCount?.words() || 0
+
+  const hasUnsavedChanges = useMemo(() => {
+    const baseline = baselineRef.current
+    return title !== baseline.title || htmlContent !== baseline.content
+  }, [title, htmlContent, version])
 
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-    }
-  }, [content])
+    const nextTitle = note?.title || ''
+    const nextContent = note?.content || ''
+    setTitle(nextTitle)
+    setCurrentNoteId(note?.id || null)
+    baselineRef.current = { title: nextTitle, content: nextContent }
+    setSaveState('idle')
+    setError('')
 
-  async function handleSave(event) {
-    event.preventDefault()
-    if (!title.trim()) {
-      setError('A title is required')
+    if (editor) {
+      editor.commands.setContent(nextContent, { emitUpdate: false })
+    }
+  }, [editor, note])
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
+    if (!editor || !hasUnsavedChanges) return
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current)
+    }
+
+    saveTimerRef.current = setTimeout(() => {
+      saveNote({ closeAfterSave: false, silent: true })
+    }, 2000)
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current)
+      }
+    }
+  }, [editor, hasUnsavedChanges, htmlContent, title])
+
+  async function saveNote({ closeAfterSave, silent }) {
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) {
+      if (!silent) {
+        setError('A title is required')
+      }
       return
     }
 
-    setSaving(true)
     setError('')
+    setSaving(true)
+    setSaveState('saving')
+
     try {
-      if (note) {
-        await api.put(`/api/notes/${note.id}`, { title: title.trim(), content })
-      } else {
-        await api.post('/api/notes', { title: title.trim(), content })
+      const payload = {
+        title: trimmedTitle,
+        content: editor?.getHTML() || '',
       }
-      await onSaved()
+
+      let response
+      if (currentNoteId) {
+        response = await api.put(`/api/notes/${currentNoteId}`, payload)
+      } else {
+        response = await api.post('/api/notes', payload)
+        const createdId = extractNoteId(response?.data)
+        if (createdId) {
+          setCurrentNoteId(createdId)
+        }
+      }
+
+      const nextContent = editor?.getHTML() || ''
+      baselineRef.current = { title: trimmedTitle, content: nextContent }
+      setSaveState('saved')
+
+      if (!silent) {
+        toast.success(currentNoteId ? 'Note updated.' : 'Note created.')
+      }
+
+      if (onSaved) {
+        await onSaved({ closeAfterSave, noteId: currentNoteId || extractNoteId(response?.data) })
+      }
+
+      if (closeAfterSave) {
+        onClose()
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.error || 'Unable to save this note.')
+      const message = requestError.response?.data?.error || 'Unable to save this note.'
+      setSaveState('error')
+      setError(message)
+      toast.error(message)
     } finally {
       setSaving(false)
     }
@@ -71,10 +180,10 @@ function NoteEditorModal({ note, onClose, onSaved }) {
                 </span>
                 <div>
                   <DialogDescription className="text-[0.65rem] uppercase tracking-[0.2em] text-white/35">
-                    {note ? 'Edit note' : 'New note'}
+                    {currentNoteId ? 'Edit note' : 'New note'}
                   </DialogDescription>
                   <DialogTitle className="mt-1 text-lg font-semibold tracking-tight text-white">
-                    {note ? 'Refine your thought' : 'Capture a thought'}
+                    {currentNoteId ? 'Refine your thought' : 'Capture a thought'}
                   </DialogTitle>
                 </div>
               </div>
@@ -91,23 +200,78 @@ function NoteEditorModal({ note, onClose, onSaved }) {
               </Button>
             </DialogHeader>
 
-            <form onSubmit={handleSave} className="p-6 sm:p-8">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                saveNote({ closeAfterSave: true, silent: false })
+              }}
+              className="p-6 sm:p-8"
+            >
               <Input
                 autoFocus
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => {
+                  setTitle(event.target.value)
+                  setVersion((currentValue) => currentValue + 1)
+                }}
                 placeholder="Untitled note"
                 className="h-auto border-0 bg-transparent px-0 text-3xl font-semibold tracking-[-0.05em] text-white placeholder:text-white/20 focus-visible:ring-0 sm:text-4xl"
               />
 
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                placeholder="Start writing..."
-                rows="5"
-                className="mt-8 min-h-[300px] w-full resize-none rounded-2xl border border-[#1e1e2e] bg-[#111118] p-4 text-base leading-7 text-white/75 outline-none placeholder:text-slate-500 focus:border-indigo-400/70 focus:ring-4 focus:ring-indigo-500/15"
-              />
+              <div className="mt-6 flex flex-wrap items-center gap-2 rounded-xl border border-[#1e1e2e] bg-[#0f0f16] p-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => editor?.chain().focus().toggleBold().run()}
+                  className={editor?.isActive('bold') ? 'bg-white/10 text-white' : 'text-slate-300'}
+                  aria-label="Bold"
+                >
+                  <Bold size={16} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => editor?.chain().focus().toggleItalic().run()}
+                  className={editor?.isActive('italic') ? 'bg-white/10 text-white' : 'text-slate-300'}
+                  aria-label="Italic"
+                >
+                  <Italic size={16} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                  className={editor?.isActive('bulletList') ? 'bg-white/10 text-white' : 'text-slate-300'}
+                  aria-label="Bullet list"
+                >
+                  <List size={16} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                  className={editor?.isActive('orderedList') ? 'bg-white/10 text-white' : 'text-slate-300'}
+                  aria-label="Ordered list"
+                >
+                  <ListOrdered size={16} />
+                </Button>
+              </div>
+
+              <EditorContent editor={editor} />
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <span>{wordCount} words · {charCount} characters</span>
+                <span className="font-medium text-indigo-300">
+                  {saveState === 'saving' && 'Saving...'}
+                  {saveState === 'saved' && 'Saved'}
+                  {saveState === 'error' && 'Save failed'}
+                  {saveState === 'idle' && 'Ready'}
+                </span>
+              </div>
 
               {error && (
                 <p role="alert" className="mt-3 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">
