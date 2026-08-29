@@ -24,6 +24,7 @@
   "devDependencies": {
     "chai": "^6.2.2",
     "mocha": "^11.8.0",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "pino-pretty": "^13.1.3"
   }
 }

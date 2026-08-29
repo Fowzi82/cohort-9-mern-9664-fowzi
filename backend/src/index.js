@@ -2,14 +2,13 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const pino = require('pino');
 const pinoHttp = require('pino-http');
 const { Server } = require('socket.io');
+const logger = require('./config/logger');
 const authRoutes = require('./routes/authRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 
 const app = express();
-const logger = pino({ redact: ['req.headers.authorization', 'req.headers.cookie'] });
 
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(pinoHttp({ logger }));
