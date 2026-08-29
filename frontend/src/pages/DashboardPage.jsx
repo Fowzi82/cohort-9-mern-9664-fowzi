@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Copy, FileText, LogOut, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
+import { Copy, Download, FileText, LogOut, Plus, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, useNavigate } from 'react-router-dom'
@@ -15,6 +15,7 @@ import {
 } from '../components/ui/dialog'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/axios'
+import { closeSocket, getSocket, initSocket } from '../lib/socket'
 import { getAvatarDisplayName, getInitials, getStoredProfile } from '../lib/profile'
 import NoteEditorModal from './NoteEditorModal'
 
@@ -58,6 +59,7 @@ function DashboardPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const searchInputRef = useRef(null)
+  const importInputRef = useRef(null)
 
   const avatarName = useMemo(() => getAvatarDisplayName(user, profile), [profile, user])
   const avatarInitials = useMemo(() => getInitials(avatarName), [avatarName])
@@ -79,6 +81,37 @@ function DashboardPage() {
   useEffect(() => {
     loadNotes()
   }, [loadNotes])
+
+  useEffect(() => {
+    const socket = initSocket()
+
+    socket.on('note:created', (newNote) => {
+      setNotes((currentNotes) => {
+        const exists = currentNotes.some((n) => n.id === newNote.id)
+        if (exists) return currentNotes
+        return [newNote, ...currentNotes]
+      })
+      toast.success('New note created.')
+    })
+
+    socket.on('note:updated', (updatedNote) => {
+      setNotes((currentNotes) =>
+        currentNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n))
+      )
+      toast.success('Note updated.')
+    })
+
+    socket.on('note:deleted', ({ id }) => {
+      setNotes((currentNotes) => currentNotes.filter((n) => n.id !== id))
+      toast.success('Note deleted.')
+    })
+
+    return () => {
+      socket.off('note:created')
+      socket.off('note:updated')
+      socket.off('note:deleted')
+    }
+  }, [])
 
   useEffect(() => {
     function syncProfile() {
@@ -143,6 +176,50 @@ function DashboardPage() {
     }
   }
 
+  function exportNotes() {
+    if (notes.length === 0) {
+      toast.error('No notes to export.')
+      return
+    }
+
+    const markdown = notes
+      .map((note) => {
+        const textContent = stripHtml(note.content)
+        return `## ${note.title}\n\n${textContent}\n`
+      })
+      .join('\n---\n\n')
+
+    const blob = new Blob([markdown], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `khayaal-notes-${new Date().toISOString().split('T')[0]}.md`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success('Notes exported.')
+  }
+
+  async function handleImportFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const title = file.name.replace(/\.(md|txt)$/i, '') || 'Imported Note'
+      await api.post('/api/notes', { title, content: text })
+      await loadNotes()
+      toast.success('Note imported successfully.')
+    } catch (err) {
+      toast.error('Unable to import note.')
+    } finally {
+      if (importInputRef.current) {
+        importInputRef.current.value = ''
+      }
+    }
+  }
+
   const filteredNotes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     if (!normalizedQuery) return notes
@@ -167,7 +244,34 @@ function DashboardPage() {
             <span className="wordmark-urdu gradient-text pb-2 leading-loose text-base">خیال</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={exportNotes}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+              aria-label="Export notes"
+            >
+              <Download size={16} />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => importInputRef.current?.click()}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+              aria-label="Import notes"
+            >
+              <Upload size={16} />
+            </Button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".md,.txt"
+              onChange={handleImportFile}
+              className="hidden"
+            />
             <Link
               to="/profile"
               className="group relative grid size-10 place-items-center overflow-hidden rounded-full border border-indigo-400/40 bg-gradient-to-br from-indigo-500/30 to-purple-600/30 text-xs font-semibold text-white transition hover:brightness-110"

@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
+const { Server } = require('socket.io');
 const authRoutes = require('./routes/authRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 
@@ -13,6 +14,11 @@ const logger = pino({ redact: ['req.headers.authorization', 'req.headers.cookie'
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(pinoHttp({ logger }));
 app.use(express.json());
+
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', noteRoutes);
@@ -33,4 +39,15 @@ const server = app.listen(port, () => {
   logger.info({ port }, 'Server started');
 });
 
-module.exports = { app, server };
+const io = new Server(server, {
+  cors: { origin: 'http://localhost:5173', credentials: true },
+});
+
+io.on('connection', (socket) => {
+  logger.info({ socketId: socket.id }, 'Client connected via Socket.IO');
+  socket.on('disconnect', () => {
+    logger.info({ socketId: socket.id }, 'Client disconnected');
+  });
+});
+
+module.exports = { app, server, io };

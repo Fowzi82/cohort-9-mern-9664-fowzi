@@ -13,6 +13,10 @@ async function createNote(req, res, next) {
 
     const result = await noteService.createNote(req.user.id, title, content);
 
+    if (req.io) {
+      req.io.emit('note:created', result);
+    }
+
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -57,6 +61,10 @@ async function updateNote(req, res, next) {
       content
     );
 
+    if (req.io) {
+      req.io.emit('note:updated', note);
+    }
+
     res.json(note);
   } catch (error) {
     next(error);
@@ -66,6 +74,10 @@ async function updateNote(req, res, next) {
 async function deleteNote(req, res, next) {
   try {
     const result = await noteService.deleteNote(req.params.id, req.user.id);
+
+    if (req.io) {
+      req.io.emit('note:deleted', { id: req.params.id });
+    }
 
     res.json(result);
   } catch (error) {
