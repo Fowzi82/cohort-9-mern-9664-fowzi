@@ -11,6 +11,12 @@ async function register(req, res, next) {
       });
     }
 
+    if (typeof username !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({
+        error: 'Username, email, and password must be strings',
+      });
+    }
+
     const result = await authService.register(username, email, password);
 
     res.status(201).json(result);
@@ -27,6 +33,12 @@ async function login(req, res, next) {
     if (!email || !password) {
       return res.status(400).json({
         error: 'Email and password are required',
+      });
+    }
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({
+        error: 'Email and password must be strings',
       });
     }
 
