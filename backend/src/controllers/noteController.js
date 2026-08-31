@@ -13,7 +13,9 @@ async function createNote(req, res, next) {
       return res.status(400).json({ error: 'Title and content must be strings' });
     }
 
-    const result = await noteService.createNote(req.user.id, title, content);
+    const safeContent = content !== undefined ? content : null;
+
+    const result = await noteService.createNote(req.user.id, title, safeContent);
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -51,11 +53,13 @@ async function updateNote(req, res, next) {
       return res.status(400).json({ error: 'Title and content must be strings' });
     }
 
+    const safeContent = content !== undefined ? content : null;
+
     const note = await noteService.updateNote(
       req.params.id,
       req.user.id,
       title,
-      content
+      safeContent
     );
     res.json(note);
   } catch (error) {
