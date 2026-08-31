@@ -20,8 +20,9 @@
     "pino-http": "^11.0.0"
   },
   "devDependencies": {
-    "chai": "^6.2.2",
+    "chai": "^4.3.10",
     "mocha": "^11.8.0",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "sinon": "^17.0.1"
   }
 }

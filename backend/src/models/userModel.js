@@ -1,30 +1,73 @@
 const pool = require('../config/db');
 
+/**
+ * @typedef {Object} UserRow
+ * @property {number} id
+ * @property {string} username
+ * @property {string} email
+ * @property {string} [password]
+ */
+
+/**
+ * Creates a new user in the database.
+ * @param {string} username
+ * @param {string} email
+ * @param {string} hashedPassword
+ * @returns {Promise<import('mysql2').ResultSetHeader>}
+ */
 async function createUser(username, email, hashedPassword) {
-  const [result] = await pool.execute(
-    'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-    [username, email, hashedPassword]
-  );
-
-  return result;
+  try {
+    const [result] = await pool.execute(
+      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+      [username, email, hashedPassword]
+    );
+    return result;
+  } catch (err) {
+    const error = new Error('Failed to create user');
+    error.status = 500;
+    error.cause = err;
+    throw error;
+  }
 }
 
+/**
+ * Finds a user by email address.
+ * @param {string} email
+ * @returns {Promise<UserRow|null>}
+ */
 async function findUserByEmail(email) {
-  const [rows] = await pool.execute(
-    'SELECT id, username, email, password FROM users WHERE email = ?',
-    [email]
-  );
-
-  return rows[0] || null;
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, username, email, password FROM users WHERE email = ?',
+      [email]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    const error = new Error('Failed to look up user by email');
+    error.status = 500;
+    error.cause = err;
+    throw error;
+  }
 }
 
+/**
+ * Finds a user by their ID.
+ * @param {number} id
+ * @returns {Promise<UserRow|null>}
+ */
 async function findUserById(id) {
-  const [rows] = await pool.execute(
-    'SELECT id, username, email FROM users WHERE id = ?',
-    [id]
-  );
-
-  return rows[0] || null;
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, username, email FROM users WHERE id = ?',
+      [id]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    const error = new Error('Failed to look up user by id');
+    error.status = 500;
+    error.cause = err;
+    throw error;
+  }
 }
 
 module.exports = {
