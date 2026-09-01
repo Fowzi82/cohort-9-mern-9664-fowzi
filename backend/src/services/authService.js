@@ -4,16 +4,30 @@ const jwt = require('jsonwebtoken');
 const userModel = require('../models/userModel');
 
 const jwtSecret = process.env.JWT_SECRET;
-
 if (!jwtSecret || jwtSecret === 'your_super_secret_jwt_key_change_this') {
   throw new Error('JWT_SECRET must be set to a secure value');
 }
+
+// Pre-computed dummy hash used to equalise bcrypt timing for unknown emails.
+const DUMMY_HASH = '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
 
 /**
  * @typedef {Object} RegisterResult
  * @property {number} id
  * @property {string} username
  * @property {string} email
+ */
+
+/**
+ * @typedef {Object} DbUser
+ * @property {number} id
+ * @property {string} username
+ * @property {string} email
+ * @property {string} password
+ */
+
+/**
+ * @typedef {{ message: string, status: number }} ServiceError
  */
 
 /**
@@ -24,14 +38,29 @@ if (!jwtSecret || jwtSecret === 'your_super_secret_jwt_key_change_this') {
  * @returns {Promise<RegisterResult>}
  */
 async function register(username, email, password) {
-  const existingUser = await userModel.findUserByEmail(email);
-  if (existingUser) {
-    const error = new Error('Email already in use');
-    error.status = 409;
+  try {
+    /** @type {DbUser|null} */
+    const existingUser = await userModel.findUserByEmail(email);
+    if (existingUser) {
+      /** @type {Error & { status?: number }} */
+      const error = new Error('Email already in use');
+      error.status = 409;
+      throw error;
+    }
+
+    /** @type {string} */
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    /** @type {DbUser} */
+    const created = await userModel.createUser(username, email, hashedPassword);
+
+    return { id: created.id, username: created.username, email: created.email };
+  } catch (err) {
+    /** @type {Error & { status?: number }} */
+    const error = /** @type {any} */ (err);
+    if (!error.status) error.status = 500;
     throw error;
   }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  return userModel.createUser(username, email, hashedPassword);
 }
 
 /**
@@ -41,20 +70,38 @@ async function register(username, email, password) {
  * @returns {Promise<string>} JWT token
  */
 async function login(email, password) {
-  const user = await userModel.findUserByEmail(email);
-  const isValidPassword = user ? await bcrypt.compare(password, user.password) : false;
+  try {
+    /** @type {DbUser|null} */
+    const user = await userModel.findUserByEmail(email);
 
-  if (!user || !isValidPassword) {
-    const error = new Error('Invalid credentials');
-    error.status = 401;
+    // Always run bcrypt.compare to prevent timing-based email enumeration.
+    /** @type {boolean} */
+    const isValidPassword = await bcrypt.compare(
+      password,
+      user ? user.password : DUMMY_HASH
+    );
+
+    if (!user || !isValidPassword) {
+      /** @type {Error & { status?: number }} */
+      const error = new Error('Invalid credentials');
+      error.status = 401;
+      throw error;
+    }
+
+    /** @type {string} */
+    const token = jwt.sign(
+      { id: user.id, username: user.username, email: user.email },
+      jwtSecret,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    return token;
+  } catch (err) {
+    /** @type {Error & { status?: number }} */
+    const error = /** @type {any} */ (err);
+    if (!error.status) error.status = 500;
     throw error;
   }
-
-  return jwt.sign(
-    { id: user.id, username: user.username, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN }
-  );
 }
 
 module.exports = {

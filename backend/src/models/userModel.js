@@ -13,7 +13,7 @@ const pool = require('../config/db');
  * @param {string} username
  * @param {string} email
  * @param {string} hashedPassword
- * @returns {Promise<import('mysql2').ResultSetHeader>}
+ * @returns {Promise<UserRow>}
  */
 async function createUser(username, email, hashedPassword) {
   try {
@@ -21,8 +21,11 @@ async function createUser(username, email, hashedPassword) {
       'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
       [username, email, hashedPassword]
     );
-    return result;
+    /** @type {import('mysql2').ResultSetHeader} */
+    const header = result;
+    return { id: header.insertId, username, email };
   } catch (err) {
+    /** @type {Error & { status?: number, cause?: unknown }} */
     const error = new Error('Failed to create user');
     error.status = 500;
     error.cause = err;
@@ -37,12 +40,14 @@ async function createUser(username, email, hashedPassword) {
  */
 async function findUserByEmail(email) {
   try {
+    /** @type {[UserRow[], unknown]} */
     const [rows] = await pool.execute(
       'SELECT id, username, email, password FROM users WHERE email = ?',
       [email]
     );
     return rows[0] || null;
   } catch (err) {
+    /** @type {Error & { status?: number, cause?: unknown }} */
     const error = new Error('Failed to look up user by email');
     error.status = 500;
     error.cause = err;
@@ -57,12 +62,14 @@ async function findUserByEmail(email) {
  */
 async function findUserById(id) {
   try {
+    /** @type {[UserRow[], unknown]} */
     const [rows] = await pool.execute(
       'SELECT id, username, email FROM users WHERE id = ?',
       [id]
     );
     return rows[0] || null;
   } catch (err) {
+    /** @type {Error & { status?: number, cause?: unknown }} */
     const error = new Error('Failed to look up user by id');
     error.status = 500;
     error.cause = err;

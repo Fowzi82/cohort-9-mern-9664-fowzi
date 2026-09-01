@@ -18,6 +18,13 @@ const authService = require('../services/authService');
  * @property {string} password
  */
 
+/**
+ * @typedef {Object} RegisterResult
+ * @property {number} id
+ * @property {string} username
+ * @property {string} email
+ */
+
 describe('authService', function () {
   /** @type {sinon.SinonSandbox} */
   let sandbox;
@@ -31,27 +38,49 @@ describe('authService', function () {
   });
 
   describe('register', function () {
-    it('successfully creates a user and returns the user object', async function () {
+    it('successfully creates a user and returns the user object without password', async function () {
       /** @type {UserFixture} */
-      const createdUser = { id: 1, username: 'alice', email: 'alice@example.com', password: 'hashed-password' };
+      const createdUser = {
+        id: 1,
+        username: 'alice',
+        email: 'alice@example.com',
+        password: 'hashed-password',
+      };
+
+      /** @type {RegisterResult} */
+      const expectedResult = { id: 1, username: 'alice', email: 'alice@example.com' };
 
       sandbox.stub(userModel, 'findUserByEmail').resolves(null);
       sandbox.stub(bcrypt, 'hash').resolves('hashed-password');
       sandbox.stub(userModel, 'createUser').resolves(createdUser);
 
+      /** @type {RegisterResult} */
       const result = await authService.register('alice', 'alice@example.com', 'secret123');
-      expect(result).to.deep.equal(createdUser);
+
+      expect(result).to.deep.equal(expectedResult);
+      expect(result).to.not.have.property('password');
       expect(userModel.findUserByEmail.calledOnceWithExactly('alice@example.com')).to.equal(true);
       expect(bcrypt.hash.calledOnceWithExactly('secret123', 10)).to.equal(true);
-      expect(userModel.createUser.calledOnceWithExactly('alice', 'alice@example.com', 'hashed-password')).to.equal(true);
+      expect(
+        userModel.createUser.calledOnceWithExactly('alice', 'alice@example.com', 'hashed-password')
+      ).to.equal(true);
     });
 
-    it("throws error with message 'Email already in use' if duplicate", async function () {
-      sandbox.stub(userModel, 'findUserByEmail').resolves({ id: 2, email: 'alice@example.com' });
+    it("throws error with status 409 and message 'Email already in use' if duplicate", async function () {
+      /** @type {Pick<UserFixture, 'id' | 'email'>} */
+      const existingUser = { id: 2, email: 'alice@example.com' };
+      sandbox.stub(userModel, 'findUserByEmail').resolves(existingUser);
+
+      /** @type {Error & { status?: number }} */
+      let thrown;
       await assert.rejects(
         () => authService.register('alice', 'alice@example.com', 'secret123'),
-        /Email already in use/
+        (/** @type {Error & { status?: number }} */ err) => {
+          thrown = err;
+          return /Email already in use/.test(err.message);
+        }
       );
+      expect(thrown.status).to.equal(409);
     });
   });
 
@@ -71,21 +100,32 @@ describe('authService', function () {
 
       /** @type {string} */
       const result = await authService.login('alice@example.com', 'secret123');
+
       expect(result).to.equal('jwt-token');
       expect(userModel.findUserByEmail.calledOnceWithExactly('alice@example.com')).to.equal(true);
       expect(bcrypt.compare.calledOnceWithExactly('secret123', 'hashed-password')).to.equal(true);
       expect(jwt.sign.calledOnce).to.equal(true);
     });
 
-    it("throws error with message 'Invalid credentials' if user does not exist", async function () {
+    it("throws error with status 401 and message 'Invalid credentials' if user does not exist", async function () {
       sandbox.stub(userModel, 'findUserByEmail').resolves(null);
+      // compare still runs against the dummy hash and must resolve false
+      sandbox.stub(bcrypt, 'compare').resolves(false);
+
+      /** @type {Error & { status?: number }} */
+      let thrown;
       await assert.rejects(
         () => authService.login('missing@example.com', 'secret123'),
-        /Invalid credentials/
+        (/** @type {Error & { status?: number }} */ err) => {
+          thrown = err;
+          return /Invalid credentials/.test(err.message);
+        }
       );
+      expect(thrown.status).to.equal(401);
+      expect(bcrypt.compare.calledOnce).to.equal(true);
     });
 
-    it("throws error with message 'Invalid credentials' if password is wrong", async function () {
+    it("throws error with status 401 and message 'Invalid credentials' if password is wrong", async function () {
       /** @type {UserFixture} */
       const user = {
         id: 1,
@@ -96,10 +136,17 @@ describe('authService', function () {
 
       sandbox.stub(userModel, 'findUserByEmail').resolves(user);
       sandbox.stub(bcrypt, 'compare').resolves(false);
+
+      /** @type {Error & { status?: number }} */
+      let thrown;
       await assert.rejects(
         () => authService.login('alice@example.com', 'wrong-password'),
-        /Invalid credentials/
+        (/** @type {Error & { status?: number }} */ err) => {
+          thrown = err;
+          return /Invalid credentials/.test(err.message);
+        }
       );
+      expect(thrown.status).to.equal(401);
     });
   });
 });
