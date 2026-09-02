@@ -1,10 +1,8 @@
 require('dotenv').config();
-
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
   console.error('FATAL: JWT_SECRET is not set. Refusing to start.');
   process.exit(1);
 }
-
 const express = require('express');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
