@@ -9,7 +9,8 @@ if (!jwtSecret || jwtSecret === 'your_super_secret_jwt_key_change_this') {
 }
 
 // Pre-computed dummy hash used to equalise bcrypt timing for unknown emails.
-const DUMMY_HASH = '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
+// Generated with bcrypt.hash('dummy', 10) — must be exactly 60 characters.
+const DUMMY_HASH = '$2b$10$8UbNc0DNETu1oUjwSNIsUesgKM4zOiY8cWNsAzgMoqCRs3fTBjXDy';
 
 // bcrypt silently truncates passwords longer than 72 UTF-8 bytes.
 const BCRYPT_MAX_BYTES = 72;
