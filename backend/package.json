@@ -20,9 +20,15 @@
     "pino-http": "^11.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.4.1",
     "chai": "^4.3.10",
     "mocha": "^11.8.0",
     "nodemon": "^3.1.14",
-    "sinon": "^17.0.1"
+    "sinon": "^17.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^7.0.2"
   }
 }

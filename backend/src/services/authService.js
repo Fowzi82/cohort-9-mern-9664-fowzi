@@ -11,6 +11,9 @@ if (!jwtSecret || jwtSecret === 'your_super_secret_jwt_key_change_this') {
 // Pre-computed dummy hash used to equalise bcrypt timing for unknown emails.
 const DUMMY_HASH = '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
 
+// bcrypt silently truncates passwords longer than 72 UTF-8 bytes.
+const BCRYPT_MAX_BYTES = 72;
+
 /**
  * @typedef {Object} RegisterResult
  * @property {number} id
@@ -39,6 +42,13 @@ const DUMMY_HASH = '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234
  */
 async function register(username, email, password) {
   try {
+    if (Buffer.byteLength(password, 'utf8') > BCRYPT_MAX_BYTES) {
+      /** @type {Error & { status?: number }} */
+      const error = new Error('Password must not exceed 72 bytes');
+      error.status = 400;
+      throw error;
+    }
+
     /** @type {DbUser|null} */
     const existingUser = await userModel.findUserByEmail(email);
     if (existingUser) {
@@ -107,4 +117,5 @@ async function login(email, password) {
 module.exports = {
   register,
   login,
+  DUMMY_HASH,
 };

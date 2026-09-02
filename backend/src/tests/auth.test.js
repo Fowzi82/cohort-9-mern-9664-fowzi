@@ -9,6 +9,7 @@ process.env.JWT_EXPIRES_IN = '1h';
 
 const userModel = require('../models/userModel');
 const authService = require('../services/authService');
+const { DUMMY_HASH } = require('../services/authService');
 
 /**
  * @typedef {Object} UserFixture
@@ -55,7 +56,12 @@ describe('authService', function () {
       sandbox.stub(userModel, 'createUser').resolves(createdUser);
 
       /** @type {RegisterResult} */
-      const result = await authService.register('alice', 'alice@example.com', 'secret123');
+      let result;
+      try {
+        result = await authService.register('alice', 'alice@example.com', 'secret123');
+      } catch (err) {
+        assert.fail(`register threw unexpectedly: ${err.message}`);
+      }
 
       expect(result).to.deep.equal(expectedResult);
       expect(result).to.not.have.property('password');
@@ -99,7 +105,12 @@ describe('authService', function () {
       sandbox.stub(jwt, 'sign').returns('jwt-token');
 
       /** @type {string} */
-      const result = await authService.login('alice@example.com', 'secret123');
+      let result;
+      try {
+        result = await authService.login('alice@example.com', 'secret123');
+      } catch (err) {
+        assert.fail(`login threw unexpectedly: ${err.message}`);
+      }
 
       expect(result).to.equal('jwt-token');
       expect(userModel.findUserByEmail.calledOnceWithExactly('alice@example.com')).to.equal(true);
@@ -109,7 +120,6 @@ describe('authService', function () {
 
     it("throws error with status 401 and message 'Invalid credentials' if user does not exist", async function () {
       sandbox.stub(userModel, 'findUserByEmail').resolves(null);
-      // compare still runs against the dummy hash and must resolve false
       sandbox.stub(bcrypt, 'compare').resolves(false);
 
       /** @type {Error & { status?: number }} */
@@ -123,6 +133,8 @@ describe('authService', function () {
       );
       expect(thrown.status).to.equal(401);
       expect(bcrypt.compare.calledOnce).to.equal(true);
+      // Assert that the dummy hash was passed, not undefined or user password
+      expect(bcrypt.compare.calledOnceWithExactly('secret123', DUMMY_HASH)).to.equal(true);
     });
 
     it("throws error with status 401 and message 'Invalid credentials' if password is wrong", async function () {
